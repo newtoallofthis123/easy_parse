@@ -36,7 +36,7 @@ func (s *Store) CreateToken(token CreateTokenRequest) (Token, error) {
 
 func (s *Store) GetToken(id string) (Token, error) {
 	var token Token
-	err := s.pq.Select("id", "user_id", "expiry").From("tokens").Where(squirrel.Eq{"id": id}).RunWith(s.db).Scan(&token)
+	err := s.pq.Select("id", "user_id", "expiry").From("tokens").Where(squirrel.Eq{"id": id}).RunWith(s.db).Scan(&token.Id, &token.UserId, &token.Expiry)
 	if err != nil {
 		return Token{}, err
 	}

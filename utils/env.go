@@ -8,8 +8,9 @@ import (
 )
 
 type Env struct {
-	ConnString string
-	Port       string
+	ConnString   string
+	Port         string
+	GeminiAPIKey string
 }
 
 // Reads the .env file and returns an Env struct.
@@ -21,8 +22,9 @@ func ReadEnv() Env {
 	}
 
 	return Env{
-		ConnString: getEnv("DATABASE_URL"),
-		Port:       getEnv("PORT"),
+		ConnString:   getEnv("DATABASE_URL"),
+		Port:         getEnv("PORT"),
+		GeminiAPIKey: getEnv("GOOGLE_API_KEY"),
 	}
 }
 

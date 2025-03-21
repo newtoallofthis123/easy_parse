@@ -7,6 +7,7 @@ import (
 
 	"github.com/newtoallofthis123/easy_parse/api"
 	"github.com/newtoallofthis123/easy_parse/db"
+	"github.com/newtoallofthis123/easy_parse/parser"
 	"github.com/newtoallofthis123/easy_parse/utils"
 )
 
@@ -23,7 +24,14 @@ func main() {
 	}
 	logger.Info("Initialized Database")
 
-	api := api.NewApiServer(env.Port, logger, store)
+	gemini, err := parser.NewGeminiAPI(env.GeminiAPIKey, parser.SystemPrompt())
+	if err != nil {
+		logger.Error(fmt.Sprintf("Failed to initialize Gemini API: %s", err.Error()))
+		return
+	}
+	logger.Info("Initialized Gemini API")
+
+	api := api.NewApiServer(env.Port, logger, store, gemini)
 	err = api.Start()
 	if err != nil {
 		logger.Error(fmt.Sprintf("Failed to start API server: %s", err.Error()))

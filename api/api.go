@@ -2,24 +2,31 @@ package api
 
 import (
 	"fmt"
+	"io"
+	"log"
 	"log/slog"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/newtoallofthis123/easy_parse/db"
+	"github.com/newtoallofthis123/easy_parse/parser"
+	"google.golang.org/genai"
 )
 
 type ApiServer struct {
 	listenAddr string
 	logger     *slog.Logger
 	store      *db.Store
+	gemini     *parser.GeminiAPI
 }
 
-func NewApiServer(port string, logger *slog.Logger, store *db.Store) *ApiServer {
+func NewApiServer(port string, logger *slog.Logger, store *db.Store, gemini *parser.GeminiAPI) *ApiServer {
 	logger.Debug("Initialized API Server")
 	return &ApiServer{
 		listenAddr: fmt.Sprintf(":%s", port),
 		logger:     logger,
 		store:      store,
+		gemini:     gemini,
 	}
 }
 
@@ -110,23 +117,63 @@ func (api *ApiServer) handleTokenDelete(c *gin.Context) {
 }
 
 func (api *ApiServer) handleParse(c *gin.Context) {
-	var reqReq db.CreateRequestRequest
-	err := c.ShouldBindJSON(&reqReq)
-	if err != nil {
-		api.logger.Error(fmt.Sprintln("Error Creating Request", err))
-		c.JSON(400, gin.H{"error": err.Error()})
+	authToken := c.Request.Header.Get("Authorization")
+	if authToken == "" {
+		c.JSON(401, gin.H{"error": "Unauthorized"})
 		return
 	}
 
-	//TODO: Implement the actual request create
-	_, err = api.store.CreateRequest(reqReq, "success")
+	// strip Bearer
+	authToken = strings.TrimPrefix(authToken, "Bearer ")
+	token, err := api.store.GetToken(authToken)
+	if err != nil {
+		api.logger.Error(fmt.Sprintln("Error Getting Token", err))
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+
+	// get form data
+	file, err := c.FormFile("file")
+	if err != nil {
+		api.logger.Error(fmt.Sprintln("Error Getting Form File", err))
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+	data, err := file.Open()
+	if err != nil {
+		api.logger.Error(fmt.Sprintln("Error Opening File", err))
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+	defer data.Close()
+	contentType := c.PostForm("Content-Type")
+	if contentType == "" {
+		contentType = file.Header.Get("Content-Type")
+	}
+	fileData, err := io.ReadAll(data)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	parts := []*genai.Part{
+		{Text: "Parse this PDF"},
+		{InlineData: &genai.Blob{Data: fileData, MIMEType: contentType}},
+	}
+	res, err := api.gemini.Send(parts)
+	if err != nil {
+		api.logger.Error(fmt.Sprintln("Error Sending Request", err))
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+
+	_, err = api.store.CreateRequest(db.CreateRequestRequest{UserId: token.UserId}, "success")
 	if err != nil {
 		api.logger.Error(fmt.Sprintln("Error Creating Request", err))
 		c.JSON(500, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(200, gin.H{"todo": "I have to do this later!"})
+	c.JSON(200, gin.H{"data": res})
 }
 
 func (api *ApiServer) Start() error {

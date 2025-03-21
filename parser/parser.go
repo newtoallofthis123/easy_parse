@@ -28,8 +28,8 @@ func SystemPrompt() string {
   },
   "summary": "summary in the resume",
   "skills": "comma separated list of skills",
-  "work": "[{"id": "generate a random id","company":"company","title":"title","startDate":"start_date","endDate":"end_date","description":"description"}]",
-  "education": "[{"id": "generate a random id","degree":"degree","institution":"institution","startDate":"start_date","endDate":"end_date"}]",
+  "work": "[{"id": "generate a random id","company":"company","title":"title","start_date":"start_date","end_date":"end_date","description":"description"}]",
+  "education": "[{"id": "generate a random id","degree":"degree","institution":"institution","start_date":"start_date","end_date":"end_date"}]",
   "projects": "[{"id": "generate a random id","name":"name","description":"description"}]",
   "achievements": "[{"id": "generate a random id","name":"name","description":"description"}]",
 }`

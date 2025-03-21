@@ -10,6 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/newtoallofthis123/easy_parse/db"
 	"github.com/newtoallofthis123/easy_parse/parser"
+	"github.com/newtoallofthis123/easy_parse/utils"
 	"google.golang.org/genai"
 )
 
@@ -166,6 +167,8 @@ func (api *ApiServer) handleParse(c *gin.Context) {
 		return
 	}
 
+	res = strings.ReplaceAll(res, "\n", "")
+
 	_, err = api.store.CreateRequest(db.CreateRequestRequest{UserId: token.UserId}, "success")
 	if err != nil {
 		api.logger.Error(fmt.Sprintln("Error Creating Request", err))
@@ -173,7 +176,14 @@ func (api *ApiServer) handleParse(c *gin.Context) {
 		return
 	}
 
-	c.JSON(200, gin.H{"data": res})
+	parsedJson, err := utils.DecodeAndParse([]byte(res))
+	if err != nil {
+		api.logger.Error(fmt.Sprintln("Error Parsing JSON", err))
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(200, parsedJson)
 }
 
 func (api *ApiServer) Start() error {

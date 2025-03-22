@@ -6,7 +6,9 @@ import (
 	"log"
 	"log/slog"
 	"strings"
+	"time"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/newtoallofthis123/easy_parse/db"
 	"github.com/newtoallofthis123/easy_parse/parser"
@@ -156,11 +158,19 @@ func (api *ApiServer) handleParse(c *gin.Context) {
 		log.Fatal(err)
 	}
 
+	schema := c.PostForm("schema")
+	var res string
+
 	parts := []*genai.Part{
 		{Text: "Parse this PDF"},
 		{InlineData: &genai.Blob{Data: fileData, MIMEType: contentType}},
 	}
-	res, err := api.gemini.Send(parts)
+	if schema != "" {
+		res, err = api.gemini.SendWithSystemPrompt(parts, parser.SystemPromptWithSchema(schema))
+	} else {
+		res, err = api.gemini.Send(parts)
+	}
+
 	if err != nil {
 		api.logger.Error(fmt.Sprintln("Error Sending Request", err))
 		c.JSON(500, gin.H{"error": err.Error()})
@@ -189,6 +199,17 @@ func (api *ApiServer) handleParse(c *gin.Context) {
 func (api *ApiServer) Start() error {
 	r := gin.Default()
 
+	config := cors.Config{
+		AllowOrigins:     []string{"http://localhost:3000", "https://parse.noobscience.in"},
+		AllowMethods:     []string{"POST", "PUT", "DELETE"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization"},
+		ExposeHeaders:    []string{"Content-Length", "Authorization"},
+		AllowCredentials: true,
+		MaxAge:           12 * time.Hour,
+	}
+
+	r.Use(cors.New(config))
+
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(200, gin.H{"status": "ok"})
 	})
@@ -206,8 +227,6 @@ func (api *ApiServer) Start() error {
 	token.GET("/:id", api.handleTokenGet)
 	token.DELETE("/:id", api.handleTokenDelete)
 
-	// The main parse route
-	// FIXME: This doesn't work
 	r.POST("/parse", api.handleParse)
 
 	err := r.Run(api.listenAddr)

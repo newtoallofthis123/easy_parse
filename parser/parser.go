@@ -56,9 +56,9 @@ func NewGeminiAPI(apiKey string, systemPrompt string) (*GeminiAPI, error) {
 	return &GeminiAPI{client: client, system: systemPrompt}, nil
 }
 
-func (g *GeminiAPI) Send(content []*genai.Part) (string, error) {
+func (g *GeminiAPI) SendWithSystemPrompt(content []*genai.Part, systemPrompt string) (string, error) {
 	result, err := g.client.Models.GenerateContent(context.Background(), "gemini-2.0-flash-exp", []*genai.Content{{Parts: content}}, &genai.GenerateContentConfig{
-		SystemInstruction: &genai.Content{Parts: []*genai.Part{{Text: g.system}}},
+		SystemInstruction: &genai.Content{Parts: []*genai.Part{{Text: systemPrompt}}},
 		ResponseMIMEType:  "application/json",
 	})
 	if err != nil {
@@ -68,4 +68,8 @@ func (g *GeminiAPI) Send(content []*genai.Part) (string, error) {
 	resp := result.Candidates[0].Content.Parts[0].Text
 
 	return resp, nil
+}
+
+func (g *GeminiAPI) Send(content []*genai.Part) (string, error) {
+	return g.SendWithSystemPrompt(content, g.system)
 }
